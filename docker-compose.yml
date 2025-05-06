@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"  # Flask REST API
+      - "5001:5001"  # MCU TCP server
+    restart: always
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3001:3001"  # React 前端開發伺服器
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3001
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - backend

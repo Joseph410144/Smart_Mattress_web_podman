@@ -1,0 +1,43 @@
+# === Node (frontend) ===
+frontend/node_modules/
+frontend/build/
+frontend/coverage/
+frontend/.pnp*
+frontend/.env*
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# === Python (backend) ===
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+backend/.venv/
+*.py[cod]
+
+# === Mac / Editor / System ===
+.DS_Store
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.vscode/
+.idea/
+
+# === Logs ===
+*.log
+logs/
+
+# === Container / Build artifacts ===
+*.tar
+*.img
+*.iso
+*.pid
+
+# === Git backup ===
+*.orig
+
+# === General ===
+.env
+.env.*
+*.bak

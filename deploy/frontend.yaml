@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: frontend
+spec:
+  containers:
+    - name: frontend
+      image: localhost/frontend:latest
+      ports:
+        - containerPort: 3001
+          hostPort: 3001
+      env:
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "3001"
+      volumeMounts:
+        - mountPath: /app
+          name: frontend-code
+  volumes:
+    - name: frontend-code
+      hostPath:
+        path: /Users/joseph/Documents/Program/Innolux/innolux_smart_mattress_project_docker/frontend
+        type: Directory

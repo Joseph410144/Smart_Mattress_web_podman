@@ -1,0 +1,1 @@
+在podman中，如果前後端用不同的pod container啟動，溝通的ip要是主機的ip，並且要確定host ip有跟container ip連接到

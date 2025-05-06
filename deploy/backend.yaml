@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: backend
+spec:
+  containers:
+    - name: backend
+      image: localhost/backend:latest
+      ports:
+       - containerPort: 8000
+         hostPort: 8000
+       - containerPort: 5001
+         hostPort: 5001
+      volumeMounts:
+        - mountPath: /app
+          name: backend-code
+  volumes:
+    - name: backend-code
+      hostPath:
+        path: /Users/joseph/Documents/Program/Innolux/innolux_smart_mattress_project_docker/backend
+        type: Directory
