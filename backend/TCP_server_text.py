@@ -1,3 +1,5 @@
+import os
+import json
 import time
 import struct
 import socket
@@ -10,14 +12,18 @@ class TCPServer:
         self.port = port
         self.server_socket = None
         self.clients = {}  # {'ip:port': socket}
+        self.data_frontend = {} # 傳送資料到前端
         self.data_storage = {}  # {'ip:port': {"raw": [...], "heart_rate": [...], ...}}
         self.running = True
         self.callback = callback
+        self.snapshot_dir = "/app/snapshots"
 
         self.check_array = self._create_check_array()
         self.data_array = self._create_data_array()
 
         self.lastAdccurrent = 0
+        self.raw_per_minute = 60*100
+        self.value_per_minute = 120
 
     def _create_check_array(self):
         arr = bytearray(513)
@@ -42,10 +48,12 @@ class TCPServer:
         return high_byte, low_byte
 
     def start(self):
+        print(self.snapshot_dir)
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((self.host, self.port))
         self.server_socket.listen(5)
+        threading.Thread(target=self._prune_and_store, daemon=True).start()
         print(f"🚀 Server listening on {self.host}:{self.port}")
 
         while self.running:
@@ -56,13 +64,20 @@ class TCPServer:
             data = client_socket.recv(1400)
             if self._check_reply(data):
                 self.clients[addr_str] = client_socket
+                self.data_frontend[addr_str] = {
+                    "heart_rate": 0,
+                    "resp_rate": 0,
+                    "movement": 0,
+                    "outofbed": 0,
+                    'autoscaling': 0,
+                    "timestamp": ''
+                }
                 self.data_storage[addr_str] = {
                     "raw": [],
                     "heart_rate": [],
                     "resp_rate": [],
                     "movement": [],
                     "outofbed": [],
-                    'autoscaling': [],
                     "timestamp": []
                 }
                 print(f'start getting data on {addr_str}')
@@ -74,6 +89,37 @@ class TCPServer:
 
     def _check_reply(self, data):
         return len(data) >= 13 and data[5] == 0x03
+    
+    def _prune_and_store(self):
+        while self.running:
+            now = datetime.now()
+
+            # 如果系統秒數為 0，就觸發儲存
+            if now.second == 0:
+                snapshot_time = now.strftime("%Y-%m-%d_%H-%M-%S")
+                print(f"📝 儲存 snapshot at {snapshot_time}")
+                os.makedirs(self.snapshot_dir, exist_ok=True)
+
+                snapshot = {}
+                for addr, data in self.data_storage.items():
+                    snapshot[addr] = {}
+                    for key in data.keys():
+                        if key == 'raw':
+                            if len(data[key]) >= self.raw_per_minute:
+                                snapshot[addr][key] = data[key][-self.raw_per_minute:]  # 取最後 1 分鐘資料（每 0.5 秒一筆）
+                            else:
+                                snapshot[addr][key] = data[key][:]  # 取最後 1 分鐘資料（每 0.5 秒一筆）
+                        else:
+                            snapshot[addr][key] = data[key][-self.value_per_minute:]  # 取最後 1 分鐘資料（每 0.5 秒一筆）
+                
+                with open(os.path.join(self.snapshot_dir, f'snapshot_{snapshot_time}.json'), "w") as f:
+                    json.dump(snapshot, f, indent=2)
+
+                # 等 1 秒避免重複觸發
+                time.sleep(1)
+
+            else:
+                time.sleep(0.5)
 
     def handle_client(self, addr_str):
         sock = self.clients[addr_str]
@@ -128,16 +174,29 @@ class TCPServer:
                 self.lastAdccurrent = CurrentAdccurrent
                 
                 timestamp = datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
+                
+                self.data_frontend[addr_str]["heart_rate"] = HeartMCU
+                self.data_frontend[addr_str]["resp_rate"] = RespMCU
+                self.data_frontend[addr_str]["movement"] = BdmmtMCU
+                self.data_frontend[addr_str]["outofbed"] = OobMCU
+                self.data_frontend[addr_str]["autoscaling"] = AutoScaling
+                self.data_frontend[addr_str]["timestamp"] = timestamp
 
-                self.data_storage[addr_str]["raw"] = self.data_storage[addr_str]["raw"] + raw
+                if len(self.data_storage[addr_str]["heart_rate"]) >= 3600:
+                    # 移除最舊資料
+                    for key in ["heart_rate", "resp_rate", "movement", "outofbed", "timestamp"]:
+                        self.data_storage[addr_str][key].pop(0)
+                    self.data_storage[addr_str]["raw"] = self.data_storage[addr_str]["raw"][len(raw):] 
+
+                # 不論是否達到上限，都加一筆新資料
+                self.data_storage[addr_str]["raw"] += raw 
                 self.data_storage[addr_str]["heart_rate"].append(HeartMCU)
                 self.data_storage[addr_str]["resp_rate"].append(RespMCU)
                 self.data_storage[addr_str]["movement"].append(BdmmtMCU)
                 self.data_storage[addr_str]["outofbed"].append(OobMCU)
-                self.data_storage[addr_str]["autoscaling"].append(AutoScaling)
                 self.data_storage[addr_str]["timestamp"].append(timestamp)
 
-                self.callback(self.data_storage)
+                self.callback(self.data_frontend)
                 time.sleep(0.5)
 
             except socket.timeout:
@@ -145,6 +204,7 @@ class TCPServer:
                 sock.close()
                 del self.clients[addr_str]
                 del self.data_storage[addr_str]
+                del self.data_frontend[addr_str]
                 break
 
             except Exception as e:
@@ -152,6 +212,7 @@ class TCPServer:
                 sock.close()
                 del self.clients[addr_str]
                 del self.data_storage[addr_str]
+                del self.data_frontend[addr_str]
                 break
 
     def start_autoscaling(self, addr_str):

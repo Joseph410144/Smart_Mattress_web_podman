@@ -12,9 +12,9 @@ const socket = io('http://192.168.0.117:8000', {
 });
 
 function MCUTile({ addr, data, handleCommand }) {
-  const outOfBed = data.outofbed?.slice(-1)[0];
-  const movement = data.movement?.slice(-1)[0];
-  const autoscaling = data.autoscaling?.slice(-1)[0];
+  const outOfBed = data.outofbed ?? null;
+  const movement = data.movement ?? null;
+  const autoscaling = data.autoscaling ?? null;
   console.log(`[Debug] ${addr} → outOfBed:`, outOfBed, ', movement:', movement, ', Autoscaling:', autoscaling);
 
   return (
@@ -34,8 +34,8 @@ function MCUTile({ addr, data, handleCommand }) {
       </div>
       <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>{addr}</h3>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
-        <p><strong>❤️ {data.heart_rate?.slice(-1)[0]}</strong></p>
-        <p><strong>🌬️ {data.resp_rate?.slice(-1)[0]}</strong></p>
+        <p><strong>❤️ {data.heart_rate ?? null}</strong></p>
+        <p><strong>🌬️ {data.resp_rate ?? null}</strong></p>
       </div>
       <p style={{ fontSize: '0.85rem' }}>
         {outOfBed === 1
@@ -47,7 +47,7 @@ function MCUTile({ addr, data, handleCommand }) {
       <p style={{ fontSize: '0.85rem', color: autoscaling === 1 ? 'green' : 'gray' }}>
         {autoscaling === 1 ? '⚙️ 自動調整中' : '🛑 自動調整停止'}
       </p>
-      <p style={{ fontSize: '0.75rem', color: '#666' }}>⏱️ {data.timestamp?.slice(-1)[0]}</p>
+      <p style={{ fontSize: '0.75rem', color: '#666' }}>⏱️ {data.timestamp ?? null}</p>
       <button 
         style={{
           marginTop: '0.5rem',

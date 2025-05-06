@@ -26,7 +26,7 @@ tcp_server = TCPServer(callback=lambda data: (socketio.emit('mcu_update', data))
 
 @app.route("/status")
 def get_status():
-    return jsonify(tcp_server.data_storage)
+    return jsonify(tcp_server.data_frontend)
 
 @app.route("/Autoscaling", methods=['POST'])
 def start_autoscaling():

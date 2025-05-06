@@ -41,3 +41,6 @@ logs/
 .env
 .env.*
 *.bak
+
+# === save data ===
+snapshots
