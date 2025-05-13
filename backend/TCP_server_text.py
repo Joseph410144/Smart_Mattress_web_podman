@@ -97,8 +97,10 @@ class TCPServer:
             # 如果系統秒數為 0，就觸發儲存
             if now.second == 0:
                 snapshot_time = now.strftime("%Y-%m-%d_%H-%M-%S")
-                print(f"📝 儲存 snapshot at {snapshot_time}")
-                os.makedirs(self.snapshot_dir, exist_ok=True)
+                # 建立 snapshot 資料夾 + 當日子資料夾
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                dated_dir = os.path.join(self.snapshot_dir, today_str)
+                os.makedirs(dated_dir, exist_ok=True)
 
                 snapshot = {}
                 for addr, data in self.data_storage.items():
@@ -112,7 +114,7 @@ class TCPServer:
                         else:
                             snapshot[addr][key] = data[key][-self.value_per_minute:]  # 取最後 1 分鐘資料（每 0.5 秒一筆）
                 
-                with open(os.path.join(self.snapshot_dir, f'snapshot_{snapshot_time}.json'), "w") as f:
+                with open(os.path.join(dated_dir, f'snapshot_{snapshot_time}.json'), "w") as f:
                     json.dump(snapshot, f, indent=2)
 
                 # 等 1 秒避免重複觸發
