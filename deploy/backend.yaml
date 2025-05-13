@@ -19,9 +19,9 @@ spec:
   volumes:
     - name: backend-code
       hostPath:
-        path: /Users/joseph/Documents/Program/Innolux/innolux_smart_mattress_project_docker/backend
+        path: /home/joseph/Smart_Mattress_web_podman/backend
         type: Directory
     - name: snapshots-volume
       hostPath:
-        path: /Users/joseph/Documents/Program/Innolux/innolux_smart_mattress_project_docker/snapshots
+        path: /home/joseph/Smart_Mattress_web_podman/snapshots
         type: Directory

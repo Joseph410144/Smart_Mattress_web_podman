@@ -7,7 +7,7 @@ podman pod stop frontend backend 2>/dev/null || true
 podman pod rm frontend backend 2>/dev/null || true
 
 echo "🔨 建置 frontend image..."
-cd /Users/joseph/Documents/Program/Innolux/innolux_smart_mattress_project_docker/frontend
+cd /home/joseph/Smart_Mattress_web_podman/frontend
 podman build -t localhost/frontend:latest .
 
 echo "🔨 建置 backend image..."

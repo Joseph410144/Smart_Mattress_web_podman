@@ -21,8 +21,7 @@ app = Flask(__name__)
 CORS(app)  # ← 這一行開啟所有來源都能存取 Flask API
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Global TCP Server instance
-tcp_server = TCPServer(callback=lambda data: (socketio.emit('mcu_update', data)))
+
 
 @app.route("/status")
 def get_status():
@@ -41,9 +40,13 @@ def start_autoscaling():
 def start_tcp_server():
     tcp_server.start()
 
-def start_web():
-    socketio.run(app, host="0.0.0.0", port=8000, allow_unsafe_werkzeug=True)
+# Global TCP Server instance
+tcp_server = TCPServer(callback=lambda data: (socketio.emit('mcu_update', data)))
+threading.Thread(target=start_tcp_server, daemon=True).start()
 
-if __name__ == '__main__':
-    threading.Thread(target=start_tcp_server, daemon=True).start()
-    start_web()
+# def start_web():
+#     socketio.run(app, host="0.0.0.0", port=8000, allow_unsafe_werkzeug=True)
+
+# if __name__ == '__main__':
+    
+#     start_web()

@@ -4,7 +4,7 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 // import { FaMicrochip } from 'react-icons/fa';
 
-const socket = io('http://192.168.0.117:8000', {
+const socket = io('http://35.234.57.125:8000', {
   transports: ['websocket'],
   reconnection: true,
   reconnectionAttempts: 5,
@@ -72,7 +72,7 @@ function App() {
 
   function handleCommand(addr) {
     console.log("🛰️ 送出指令到", addr);
-    axios.post('http://192.168.0.117:8000/Autoscaling', { addr })
+    axios.post('http://35.234.57.125:8000/Autoscaling', { addr })
       .then(res => console.log("✅ 後端回應", res.data))
       .catch(err => console.error("❌ 指令失敗", err));
   }
@@ -80,7 +80,7 @@ function App() {
   useEffect(() => {
     document.title = "Innolux MCU Dashboard";
     const fetchStatus = () => {
-      axios.get('http://192.168.0.117:8000/status')
+      axios.get('http://35.234.57.125:8000/status')
         .then(res => {
           console.log("📥 定時 status 更新:", res.data);
           setMcuData(res.data);
