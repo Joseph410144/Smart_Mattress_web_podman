@@ -20,5 +20,5 @@ spec:
   volumes:
     - name: frontend-code
       hostPath:
-        path: /home/joseph/Smart_Mattress_web_podman/frontend
+        path: /Users/joseph/Documents/Program/Innolux/innolux_smart_mattress_project_docker/frontend
         type: Directory

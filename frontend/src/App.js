@@ -4,7 +4,7 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 // import { FaMicrochip } from 'react-icons/fa';
 
-const socket = io('http://35.234.57.125:8000', {
+const socket = io('http://172.20.10.2:8000', {
   transports: ['websocket'],
   reconnection: true,
   reconnectionAttempts: 5,
@@ -15,6 +15,7 @@ function MCUTile({ addr, data, handleCommand }) {
   const outOfBed = data.outofbed ?? null;
   const movement = data.movement ?? null;
   const autoscaling = data.autoscaling ?? null;
+  const mcu_id = data.name ?? null;
   console.log(`[Debug] ${addr} → outOfBed:`, outOfBed, ', movement:', movement, ', Autoscaling:', autoscaling);
 
   return (
@@ -32,7 +33,7 @@ function MCUTile({ addr, data, handleCommand }) {
           style={{ width: '60px', marginBottom: '0.5rem' }}
         />
       </div>
-      <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>{addr}</h3>
+      <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>{mcu_id}</h3>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
         <p><strong>❤️ {data.heart_rate ?? null}</strong></p>
         <p><strong>🌬️ {data.resp_rate ?? null}</strong></p>
@@ -72,7 +73,7 @@ function App() {
 
   function handleCommand(addr) {
     console.log("🛰️ 送出指令到", addr);
-    axios.post('http://35.234.57.125:8000/Autoscaling', { addr })
+    axios.post('http://172.20.10.2:8000/Autoscaling', { addr })
       .then(res => console.log("✅ 後端回應", res.data))
       .catch(err => console.error("❌ 指令失敗", err));
   }
@@ -80,7 +81,7 @@ function App() {
   useEffect(() => {
     document.title = "Innolux MCU Dashboard";
     const fetchStatus = () => {
-      axios.get('http://35.234.57.125:8000/status')
+      axios.get('http://172.20.10.2:8000/status')
         .then(res => {
           console.log("📥 定時 status 更新:", res.data);
           setMcuData(res.data);
