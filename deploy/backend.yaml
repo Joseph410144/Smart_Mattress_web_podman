@@ -16,6 +16,9 @@ spec:
           name: backend-code
         - mountPath: /app/snapshots
           name: snapshots-volume
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
   volumes:
     - name: backend-code
       hostPath:
@@ -25,3 +28,7 @@ spec:
       hostPath:
         path: /Users/joseph/Documents/Program/Innolux/innolux_smart_mattress_project_docker/snapshots
         type: Directory
+    - name: localtime
+      hostPath:
+        path: /etc/localtime
+        type: File

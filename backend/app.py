@@ -1,67 +1,65 @@
-import threading
-import time
-
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-from flask_socketio import SocketIO
-from TCP_server_text import TCPServer
+import asyncio
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from TCP_server_text import AsyncTCPServer
 import signal
-import sys
+import socketio
 
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def start_tcp_server():
-    tcp_server.start()
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
+sio_app = socketio.ASGIApp(sio, other_asgi_app=app)
+
+tcp_server = AsyncTCPServer(callback=lambda data: sio.emit('mcu_update', data))
+
+async def background_start():
+    await tcp_server.start()
+
+# 啟動背景任務（只執行一次）
+asyncio.get_event_loop().create_task(background_start())
 
 def shutdown_handler(sig, frame):
     print("🛑 收到中止訊號，關閉 TCP Server...")
-    tcp_server.shutdown()
-    sys.exit(0)
+    loop = asyncio.get_event_loop()
+    loop.create_task(tcp_server.shutdown())
 
-# 註冊 Ctrl+C 中斷事件
 signal.signal(signal.SIGINT, shutdown_handler)
 signal.signal(signal.SIGTERM, shutdown_handler)
-# Global TCP Server instance
-tcp_server = TCPServer(callback=lambda data: (socketio.emit('mcu_update', data)))
-threading.Thread(target=start_tcp_server, daemon=True).start()
 
-app = Flask(__name__)
-CORS(app)  # ← 這一行開啟所有來源都能存取 Flask API
-socketio = SocketIO(app, cors_allowed_origins="*")
+from fastapi import Request
 
+@app.get("/status")
+async def get_status():
+    return tcp_server.data_frontend
 
+@app.get('/mcu/{mcu_id}')
+async def get_mcu_by_id(mcu_id: str):
+    addr_str = tcp_server.mcuid_ip.get(mcu_id)
+    if not addr_str:
+        raise HTTPException(status_code=404, detail="MCU ID not found")
+    data = tcp_server.data_frontend.get(addr_str)
+    if not data:
+        raise HTTPException(status_code=202, detail="MCU is connected but no data yet")
+    return data
 
-@app.route("/status")
-def get_status():
-    return jsonify(tcp_server.data_frontend)
+from pydantic import BaseModel
 
-# Flask API 建議範例（請在你的 Flask app 中實作）
-@app.route('/mcu/<mcu_id>', methods=['GET'])
-def get_mcu_by_id(mcu_id):
-    addr_str = tcp_server.mcuid_ip[mcu_id]
-    if addr_str:
-        data = tcp_server.data_frontend[addr_str]
-        return jsonify(data)
-    else:
-        return jsonify({"error": "MCU ID not found"}), 404
+class AutoscalingRequest(BaseModel):
+    addr: str
 
-# 前端請設計 /select 頁面作為入口輸入頁，使用者輸入 ID 後跳轉至 /mcu/:id 專頁
-
-
-
-@app.route("/Autoscaling", methods=['POST'])
-def start_autoscaling():
-    data = request.json  # 取出前端送來的 JSON 資料
-    print(f"🛰️ 收到前端送來的資料：{data}")  # 印出來觀察
-    # 這邊可以做進一步處理，比如針對 addr 做某些事情
+@app.post("/Autoscaling")
+async def start_autoscaling(request: AutoscalingRequest):
+    data = request.dict()
+    print(f"🛰️ 收到前端送來的資料：{data}")
     addr = data.get('addr')
-    tcp_server.start_autoscaling(addr_str=addr)
+    await tcp_server.start_autoscaling(addr_str=addr)
+    return {"status": "ok"}
 
-    return jsonify({"status": "ok"})
-
-
-# def start_web():
-#     socketio.run(app, host="0.0.0.0", port=8000, allow_unsafe_werkzeug=True)
-
-# if __name__ == '__main__':
-    
-#     start_web()
+app = sio_app
