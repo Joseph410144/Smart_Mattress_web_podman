@@ -17,7 +17,7 @@ app.add_middleware(
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 sio_app = socketio.ASGIApp(sio, other_asgi_app=app)
 
-tcp_server = AsyncTCPServer(callback=lambda data: sio.emit('mcu_update', data))
+tcp_server = AsyncTCPServer(callback=lambda data: asyncio.create_task(sio.emit('mcu_update', data)))
 
 async def background_start():
     await tcp_server.start()
@@ -25,13 +25,12 @@ async def background_start():
 # 啟動背景任務（只執行一次）
 asyncio.get_event_loop().create_task(background_start())
 
-def shutdown_handler(sig, frame):
-    print("🛑 收到中止訊號，關閉 TCP Server...")
-    loop = asyncio.get_event_loop()
-    loop.create_task(tcp_server.shutdown())
 
-signal.signal(signal.SIGINT, shutdown_handler)
-signal.signal(signal.SIGTERM, shutdown_handler)
+# 新增 FastAPI 的 shutdown 事件處理器
+@app.on_event("shutdown")
+async def shutdown_event():
+    print("🛑 收到中止事件，關閉 TCP Server...")
+    await tcp_server.shutdown()
 
 from fastapi import Request
 
@@ -43,10 +42,13 @@ async def get_status():
 async def get_mcu_by_id(mcu_id: str):
     addr_str = tcp_server.mcuid_ip.get(mcu_id)
     if not addr_str:
-        raise HTTPException(status_code=404, detail="MCU ID not found")
+        await sio.emit("mcu_disconnect", {"id": mcu_id})
+        return {"status": "disconnected", "id": mcu_id}
+
     data = tcp_server.data_frontend.get(addr_str)
     if not data:
-        raise HTTPException(status_code=202, detail="MCU is connected but no data yet")
+        return {"status": "waiting", "id": mcu_id}
+
     return data
 
 from pydantic import BaseModel

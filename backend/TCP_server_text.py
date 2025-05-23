@@ -69,7 +69,7 @@ class AsyncTCPServer:
             self.mcuid_ip[mcu_id] = addr_str
             self.data_frontend[addr_str] = {
                 "heart_rate": 0, "resp_rate": 0, "movement": 0,
-                "outofbed": 0, "autoscaling": 0, "timestamp": '', "name": mcu_id, "addr": addr_str
+                "outofbed": 0, "autoscaling": 0, "timestamp": '', "name": mcu_id, "addr": addr_str, "status":'connect'
             }
             self.data_storage[mcu_id] = {
                 "raw": [], "heart_rate": [], "resp_rate": [],
@@ -83,7 +83,11 @@ class AsyncTCPServer:
                 writer.write(self.data_array)
                 await writer.drain()
                 # await asyncio.sleep(0.1)
-                MCUresponseData = await reader.read(1400)
+                try:
+                    MCUresponseData = await asyncio.wait_for(reader.read(1400), timeout=10.0)
+                except asyncio.TimeoutError:
+                    raise ConnectionError("Timeout: No data received from MCU")
+
                 if not MCUresponseData:
                     raise ConnectionError("MCU disconnected")
 
@@ -131,8 +135,11 @@ class AsyncTCPServer:
                 self.data_storage[mcu_id]["movement"].append(BdmmtMCU)
                 self.data_storage[mcu_id]["outofbed"].append(OobMCU)
                 self.data_storage[mcu_id]["timestamp"].append(timestamp)
-
-                self.callback(self.data_frontend)
+                # ensure callback is awaitable
+                if asyncio.iscoroutinefunction(self.callback):
+                    await self.callback(self.data_frontend)
+                else:
+                    self.callback(self.data_frontend)
                 await asyncio.sleep(0.5)
 
         except Exception as e:
@@ -141,10 +148,17 @@ class AsyncTCPServer:
         finally:
             writer.close()
             await writer.wait_closed()
+            # callback disconnected before clearing data
+            # self.data_frontend[addr_str]['status'] = "disconnected"
+            if asyncio.iscoroutinefunction(self.callback):
+                await self.callback({addr_str: {"status": "disconnected"}})
+            else:
+                self.callback({addr_str: {"status": "disconnected"}})
             mcu_id = self.data_frontend[addr_str]['name']
             self.clients.pop(addr_str, None)
             self.data_storage.pop(mcu_id, None)
             self.data_frontend.pop(addr_str, None)
+            self.mcuid_ip.pop(mcu_id, None)
             print(f"🧹 Connection closed: {addr_str}")
 
     async def _prune_and_store(self):

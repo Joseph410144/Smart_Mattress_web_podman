@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 
 function MCUDetailPage() {
   const { id } = useParams();
@@ -10,14 +11,31 @@ function MCUDetailPage() {
   useEffect(() => {
     const fetchData = () => {
       axios.get(`http://172.20.10.2:8000/mcu/${id}`)
-        .then(res => setData(res.data))
+        .then(res => {
+          if (res.data.status === "disconnected") {
+            setData({ status: "disconnected" });
+          } else {
+            setData(res.data);
+          }
+        })
         .catch(err => console.error("❌ 無法取得 MCU 資料", err));
     };
 
     fetchData(); // initial fetch
     const interval = setInterval(fetchData, 1000); // 每秒更新一次
 
-    return () => clearInterval(interval); // 清除定時器
+    const socket = io('http://172.20.10.2:8000');
+    socket.on('mcu_disconnect', (payload) => {
+      console.log("🛑 MCU disconnect event received:", payload);
+      if (payload.id === id) {
+        setData({ status: "disconnected" });
+      }
+    });
+
+    return () => {
+      clearInterval(interval); // 清除定時器
+      socket.disconnect();
+    };
   }, [id]);
 
   function handleCommand() {
@@ -27,7 +45,50 @@ function MCUDetailPage() {
       .catch(err => console.error("❌ 指令失敗", err));
   }
 
-  if (!data) return <div style={{ padding: '2rem' }}>⌛ 資料載入中...</div>;
+  if (data?.status === "disconnected") {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        ❌ MCU 已斷線<br />
+        <button
+          style={{
+            marginTop: '1rem',
+            padding: '0.5rem 1rem',
+            fontSize: '0.85rem',
+            borderRadius: '8px',
+            border: '1px solid #333',
+            backgroundColor: '#333',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+          onClick={() => navigate('/')}
+        >
+          🔙 回首頁
+        </button>
+      </div>
+    );
+  }
+  if (!data) {
+    return (
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          ❌ MCU 已斷線<br />
+          <button
+            style={{
+              marginTop: '1rem',
+              padding: '0.5rem 1rem',
+              fontSize: '0.85rem',
+              borderRadius: '8px',
+              border: '1px solid #333',
+              backgroundColor: '#333',
+              color: 'white',
+              cursor: 'pointer'
+            }}
+            onClick={() => navigate('/')}
+          >
+            🔙 回首頁
+          </button>
+        </div>
+      );
+  }
 
   const outOfBed = data.outofbed ?? null;
   const movement = data.movement ?? null;
