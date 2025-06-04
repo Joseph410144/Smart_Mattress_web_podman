@@ -19,7 +19,7 @@ function MCUDetailPage() {
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${mcu_id}_${selectedDate}.json`);
+      link.setAttribute('download', `${mcu_id}_${selectedDate}.json.gz`);
       document.body.appendChild(link);
       link.click();
       link.remove();
