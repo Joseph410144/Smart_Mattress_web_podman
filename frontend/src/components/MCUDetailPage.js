@@ -8,6 +8,27 @@ function MCUDetailPage() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
 
+  function handleDownload() {
+    const selectedDate = prompt("請輸入日期（格式：YYYY-MM-DD）");
+    if (!selectedDate) return;
+    // Use the correct MCU ID (from data context)
+    const mcu_id = data?.name ?? id;
+    axios.get(`http://172.20.10.2:8000/download/${mcu_id}?date=${selectedDate}`, {
+      responseType: 'blob'
+    }).then(res => {
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${mcu_id}_${selectedDate}.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }).catch(err => {
+      console.error("❌ 無法下載資料", err);
+      alert("下載失敗，請確認日期格式與資料是否存在。");
+    });
+  }
+
   useEffect(() => {
     const fetchData = () => {
       axios.get(`http://172.20.10.2:8000/mcu/${id}`)
@@ -127,38 +148,52 @@ function MCUDetailPage() {
       </p>
       <p style={{ fontSize: '0.75rem', color: '#666' }}>⏱️ {data.timestamp ?? null}</p>
 
-      <button
-        style={{
-          marginTop: '1rem',
-          marginRight: '1rem',
-          padding: '0.5rem 1rem',
-          fontSize: '0.85rem',
-          borderRadius: '8px',
-          border: '1px solid #00796B',
-          backgroundColor: '#00796B',
-          color: 'white',
-          cursor: 'pointer'
-        }}
-        onClick={handleCommand}
-      >
-        ⚙️ 自動調整
-      </button>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
+        <button
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.85rem',
+            borderRadius: '8px',
+            border: '1px solid #00796B',
+            backgroundColor: '#00796B',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+          onClick={handleCommand}
+        >
+          ⚙️ 自動調整
+        </button>
 
-      <button
-        style={{
-          marginTop: '1rem',
-          padding: '0.5rem 1rem',
-          fontSize: '0.85rem',
-          borderRadius: '8px',
-          border: '1px solid #333',
-          backgroundColor: '#333',
-          color: 'white',
-          cursor: 'pointer'
-        }}
-        onClick={() => navigate('/')}
-      >
-        🔙 回首頁
-      </button>
+        <button
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.85rem',
+            borderRadius: '8px',
+            border: '1px solid #333',
+            backgroundColor: '#333',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+          onClick={() => navigate('/')}
+        >
+          🔙 回首頁
+        </button>
+
+        <button
+          style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.85rem',
+            borderRadius: '8px',
+            border: '1px solid #1976d2',
+            backgroundColor: '#1976d2',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+          onClick={handleDownload}
+        >
+          ⬇️ 下載資料
+        </button>
+      </div>
     </div>
   );
 }

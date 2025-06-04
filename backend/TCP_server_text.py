@@ -28,6 +28,8 @@ class AsyncTCPServer:
         self.data_array = self._create_data_array()
         self.check_array = self._create_check_array()
         self.running = False
+        self.mcu_cpu_log = {}  # 新增 CPU 統計資料儲存
+        # self.mcu_cpu_fig = {}
 
     def _create_check_array(self):
         arr = bytearray(513)
@@ -80,6 +82,9 @@ class AsyncTCPServer:
             lastAdccurrent = 0
 
             while True:
+                cpu_start = time.process_time()
+                wall_start = time.time()
+
                 writer.write(self.data_array)
                 await writer.drain()
                 # await asyncio.sleep(0.1)
@@ -140,6 +145,35 @@ class AsyncTCPServer:
                     await self.callback(self.data_frontend)
                 else:
                     self.callback(self.data_frontend)
+
+                cpu_used = time.process_time() - cpu_start
+                wall_elapsed = time.time() - wall_start
+                self.mcu_cpu_log.setdefault(mcu_id, []).append((cpu_used, wall_elapsed))
+                """ draw cpu using percentage """
+                # if mcu_id not in self.mcu_cpu_fig.keys():
+                #     self.mcu_cpu_fig[mcu_id] = {}
+                #     self.mcu_cpu_fig[mcu_id]['cpu_per'] = []
+                #     self.mcu_cpu_fig[mcu_id]['time'] = []
+
+                # if len(self.mcu_cpu_fig[mcu_id]['cpu_per']) == 20:
+                #     import matplotlib.pyplot as plt
+                #     plt.plot(self.mcu_cpu_fig[mcu_id]['time'], self.mcu_cpu_fig[mcu_id]['cpu_per'])
+                #     plt.title(f'{mcu_id} cpu using')
+                #     plt.xlabel('time')
+                #     plt.ylabel('CPU usage')
+                #     plt.xticks(fontsize=8, rotation=45)
+                #     plt.savefig(f'/app/snapshots/{mcu_id}_cpu.png')
+
+
+                if len(self.mcu_cpu_log[mcu_id]) >= 20:
+                    avg_cpu = sum(c for c, _ in self.mcu_cpu_log[mcu_id]) / 20
+                    avg_wall = sum(w for _, w in self.mcu_cpu_log[mcu_id]) / 20
+                    percent = avg_cpu / avg_wall * 100 if avg_wall > 0 else 0
+                    print(f"📊 [{mcu_id}] 平均 CPU 使用率：{percent:.2f}%")
+                    # self.mcu_cpu_fig[mcu_id]['cpu_per'].append(percent)
+                    # self.mcu_cpu_fig[mcu_id]['time'].append(str(timestamp).split(' ')[1])
+                    self.mcu_cpu_log[mcu_id].clear()
+
                 await asyncio.sleep(0.5)
 
         except Exception as e:
@@ -159,6 +193,7 @@ class AsyncTCPServer:
             self.data_storage.pop(mcu_id, None)
             self.data_frontend.pop(addr_str, None)
             self.mcuid_ip.pop(mcu_id, None)
+            self.mcu_cpu_log.pop(mcu_id, None)
             print(f"🧹 Connection closed: {addr_str}")
 
     async def _prune_and_store(self):

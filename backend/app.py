@@ -1,9 +1,15 @@
+import os
 import asyncio
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from TCP_server_text import AsyncTCPServer
 import signal
 import socketio
+import pandas as pd
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
+import io
+import json
+from TCP_server_text import AsyncTCPServer
 
 app = FastAPI()
 app.add_middleware(
@@ -63,5 +69,31 @@ async def start_autoscaling(request: AutoscalingRequest):
     addr = data.get('addr')
     await tcp_server.start_autoscaling(addr_str=addr)
     return {"status": "ok"}
+
+@app.get("/download/{mcu_id}")
+async def download_snapshot(mcu_id: str, date: str):
+    file_path = f"/app/snapshots/{date}"  # 或根據你實際命名方式調整
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="指定日期資料不存在")
+    
+    files = os.listdir(file_path)
+    collected_data = {}
+    for file in files:
+        time = file.split('.')[0].split('_')[2]
+        json_file = pd.read_json(os.path.join(file_path, file))
+        if mcu_id in json_file.keys():
+            mcu_id_data = json_file[mcu_id]
+            collected_data[time] = mcu_id_data.to_dict()
+
+    from collections import OrderedDict
+    def time_key(t):
+        h, m, t = map(int, t.split('-'))
+        return h * 60 + m
+
+    sorted_data = OrderedDict(sorted(collected_data.items(), key=lambda x: time_key(x[0])))
+    json_str = json.dumps(sorted_data, indent=2, ensure_ascii=False)
+    return StreamingResponse(io.BytesIO(json_str.encode('utf-8')),
+                             media_type='application/json',
+                             headers={"Content-Disposition": f"attachment; filename={mcu_id}_{date}.json"})
 
 app = sio_app
