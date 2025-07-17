@@ -45,6 +45,13 @@ from fastapi import Request
 async def get_status():
     return tcp_server.data_frontend
 
+@app.get("/mcu_real_time_data/{mcu_id}")
+async def get_mcu_real_time_data(mcu_id: str):
+    data = tcp_server.mcu_id_realTime_data.get(mcu_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail=f"MCU {mcu_id} not found")
+    return data
+
 @app.get('/mcu/{mcu_id}')
 async def get_mcu_by_id(mcu_id: str):
     addr_str = tcp_server.mcuid_ip.get(mcu_id)
@@ -70,49 +77,5 @@ async def start_autoscaling(request: AutoscalingRequest):
     addr = data.get('addr')
     await tcp_server.start_autoscaling(addr_str=addr)
     return {"status": "ok"}
-
-@app.get("/download/{mcu_id}")
-async def download_snapshot(mcu_id: str, date: str):
-    file_path = f"/app/snapshots/{date}"  # 或根據你實際命名方式調整
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="指定日期資料不存在")
-    print(f'MCU device {mcu_id} is loading {date} data')
-    files = os.listdir(file_path)
-    # print(files)
-    collected_data = {}
-    for file in files:
-        if not file.endswith(".json"):
-            continue
-        try:
-            time = file.split('.')[0].split('_')[2]
-        except IndexError:
-            continue
-
-        async with aiofiles.open(os.path.join(file_path, file), mode='r') as f:
-            content = await f.read()
-            try:
-                json_file = json.loads(content)
-            except json.JSONDecodeError as e:
-                print(e)
-                continue
-
-            if mcu_id in json_file:
-                collected_data[time] = json_file[mcu_id]
-
-    from collections import OrderedDict
-    def time_key(t):
-        h, m, s = map(int, t.split('-'))
-        return h * 60 + m
-
-    sorted_data = OrderedDict(sorted(collected_data.items(), key=lambda x: time_key(x[0])))
-    json_str = json.dumps(sorted_data, indent=2, ensure_ascii=False)
-    buffer = io.BytesIO()
-    with gzip.GzipFile(fileobj=buffer, mode="wb") as f:
-        f.write(json_str.encode("utf-8"))
-    buffer.seek(0)
-    print(f'MCU device {mcu_id} loading {date} data finished')
-    return StreamingResponse(buffer,
-                             media_type='application/gzip',
-                             headers={"Content-Disposition": f"attachment; filename={mcu_id}_{date}.json.gz"})
 
 app = sio_app

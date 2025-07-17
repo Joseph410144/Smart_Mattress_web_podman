@@ -5,11 +5,8 @@ import struct
 import socket
 import threading
 import traceback
-from datetime import datetime, timedelta, timezone
 import asyncio
-import struct
-import traceback
-import json
+import numpy as np
 from datetime import datetime, timezone, timedelta
 
 class AsyncTCPServer:
@@ -21,6 +18,7 @@ class AsyncTCPServer:
         self.data_storage = {}  # mcu_id -> data dict
         self.data_frontend = {}  # addr_str -> display dict
         self.mcuid_ip = {}  # mcu_id -> addr_str
+        self.mcu_id_realTime_data = {} # mcu_id -> real time data(mininute)
         self.raw_per_minute = 60 * 100
         self.value_per_minute = 120
         self.snapshot_dir = "/app/snapshots"
@@ -38,6 +36,14 @@ class AsyncTCPServer:
 
     def _create_data_array(self):
         arr = bytearray(513)
+        # 取得目前時間，格式化為字串
+        now = datetime.now()
+        time_str = now.strftime("%Y%m%d%H%M")  # 例如 202507171132，共12碼
+        # 轉成 ASCII bytes（每個字元一個 byte）
+        time_bytes = time_str.encode("ascii")  # b'202507171132'
+        # 放到 arr 的 index 20 開始
+        arr[20:20+12] = time_bytes
+        # data cmd
         arr[0:7] = bytes([0x13, 0x00, 0x28, 0x00, 0x09, 0x00, 0x01])
         checksum = self._calculate_checksum(sum(arr[:7]))
         arr[7], arr[8] = checksum
@@ -77,6 +83,8 @@ class AsyncTCPServer:
                 "raw": [], "heart_rate": [], "resp_rate": [],
                 "movement": [], "outofbed": [], "timestamp": []
             }
+            self.mcu_id_realTime_data[mcu_id] = {'heart_rate':[], 'resp_rate':[], 'rate_timestamp':[]
+                                                 , 'status':[], 'status_timestamp':[]}
 
             print(f'start getting data on {addr_str}, id name: {mcu_id}')
             lastAdccurrent = 0
@@ -140,6 +148,20 @@ class AsyncTCPServer:
                 self.data_storage[mcu_id]["movement"].append(BdmmtMCU)
                 self.data_storage[mcu_id]["outofbed"].append(OobMCU)
                 self.data_storage[mcu_id]["timestamp"].append(timestamp)
+
+                """ append real time figure data """
+                if OobMCU == 1:
+                    self.mcu_id_realTime_data[mcu_id]['status'].append(-1)
+                elif BdmmtMCU == 1:
+                    self.mcu_id_realTime_data[mcu_id]['status'].append(1)
+                else:
+                    self.mcu_id_realTime_data[mcu_id]['status'].append(0)
+                    
+                self.mcu_id_realTime_data[mcu_id]['status_timestamp'].append(timestamp)
+                if len(self.mcu_id_realTime_data[mcu_id]['status']) >= 4*60*100:
+                    self.mcu_id_realTime_data[mcu_id]['status'].pop(0)
+                    self.mcu_id_realTime_data[mcu_id]['status_timestamp'].pop(0)
+                
                 # ensure callback is awaitable
                 if asyncio.iscoroutinefunction(self.callback):
                     await self.callback(self.data_frontend)
@@ -204,15 +226,26 @@ class AsyncTCPServer:
                 today_str = now.strftime("%Y-%m-%d")
                 dated_dir = os.path.join(self.snapshot_dir, today_str)
                 os.makedirs(dated_dir, exist_ok=True)
-
                 snapshot = {}
                 for id, data in self.data_storage.items():
                     snapshot[id] = {}
                     for key in data.keys():
-                        # if key == 'raw':
-                            # print(f'MCU device: {id}, raw length: {len(data[key])}')
+                        if key=='heart_rate' or key=='resp_rate':
+                            min_data = np.array(data[key])
+                            if min_data[min_data>0].size > 0:
+                                self.mcu_id_realTime_data[id][key].append(np.mean(min_data[min_data>0]))
+                            else:
+                                self.mcu_id_realTime_data[id][key].append(0)
+
                         snapshot[id][key] = data[key]
                         data[key] = []
+
+                    timestamp = datetime.now(self.taiwan_tz).strftime("%Y-%m-%d %H:%M:%S")
+                    self.mcu_id_realTime_data[id]['rate_timestamp'].append(timestamp)
+                    if len(self.mcu_id_realTime_data[id]['rate_timestamp'])>=4*60:
+                        self.mcu_id_realTime_data[id]['rate_timestamp'].pop(0)
+                        self.mcu_id_realTime_data[id]['resp_rate'].pop(0)
+                        self.mcu_id_realTime_data[id]['heart_rate'].pop(0)
 
                 with open(os.path.join(dated_dir, f'snapshot_{snapshot_time}.json'), "w") as f:
                     json.dump(snapshot, f, indent=2)

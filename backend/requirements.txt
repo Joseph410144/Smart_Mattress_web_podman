@@ -11,3 +11,6 @@ flask-socketio==5.3.6
 # python-socketio==5.11.1
 python-engineio==4.9.1
 uvicorn==0.29.0
+matplotlib
+numpy
+requests

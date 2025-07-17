@@ -10,7 +10,7 @@ function MCUSelectPage() {
     e.preventDefault();
     if (inputID.trim()) {
       try {
-        const res = await fetch(`http://172.20.10.2:8000/mcu/${inputID}`);
+        const res = await fetch(`http://172.20.10.3:8000/mcu/${inputID}`);
         if (res.ok) {
           setError('');
           navigate(`/mcu/${inputID}`);

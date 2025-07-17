@@ -3,8 +3,8 @@
 # ./rebuild_podman.sh
 
 echo "🛑 停止舊的 pod..."
-podman pod stop frontend backend 2>/dev/null || true
-podman pod rm frontend backend 2>/dev/null || true
+podman pod stop frontend backend-pair 2>/dev/null || true
+podman pod rm frontend backend-pair 2>/dev/null || true
 
 echo "🔨 建置 frontend image..."
 cd /home/joseph/Smart_Mattress_web_podman/frontend

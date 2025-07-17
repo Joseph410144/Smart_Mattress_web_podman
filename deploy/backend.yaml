@@ -1,16 +1,31 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: backend
+  name: backend-pair
 spec:
   containers:
-    - name: backend
+    - name: backend-ingest
       image: localhost/backend:latest
       ports:
         - containerPort: 8000
           hostPort: 8000
         - containerPort: 5001
           hostPort: 5001
+      command: ["/entrypoint.sh", "app", "8000"]
+      volumeMounts:
+        - mountPath: /app
+          name: backend-code
+        - mountPath: /app/snapshots
+          name: snapshots-volume
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+    - name: backend-download
+      image: localhost/backend:latest
+      ports:
+        - containerPort: 8001
+          hostPort: 8001
+      command: ["/entrypoint.sh", "app_download_static", "8001"]
       volumeMounts:
         - mountPath: /app
           name: backend-code
