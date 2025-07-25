@@ -145,6 +145,23 @@ function MCUDetailPage() {
   const outOfBed = data.outofbed ?? null;
   const movement = data.movement ?? null;
   const autoscaling = data.autoscaling ?? null;
+  const rssi_frontend = data.RSSI ?? -1;
+  const rssiTextMap = {
+    0: "📶 訊號非常強",
+    1: "📡 訊號良好",
+    2: "📡 訊號普通",
+    3: "⚠️ 訊號偏弱",
+    4: "❌ 訊號極差",
+    [-1]: "🛠️ 未知訊號（請更新韌體）"
+  };
+  const rssiColorMap = {
+    0: "green",
+    1: "#4caf50",
+    2: "#ff9800",
+    3: "#f44336",
+    4: "#b71c1c",
+    [-1]: "#999"
+  };
 
   function handleCommand() {
     console.log("🛰️ 送出指令到", data.addr);
@@ -198,17 +215,19 @@ function MCUDetailPage() {
         <div style={{ minWidth: '200px', textAlign: 'left' }}>
           <p style={{ margin: '0.3rem 0', fontSize: '1.2rem' }}><strong>❤️ 心率: </strong>{data.heart_rate ?? '-'}</p>
           <p style={{ margin: '0.3rem 0', fontSize: '1.2rem' }}><strong>🌬️ 呼吸率: </strong>{data.resp_rate ?? '-'}</p>
-          <p style={{ margin: '0.3rem 0', fontSize: '1.1rem', color: outOfBed === 1 ? '#d32f2f' : movement === 1 ? '#1976d2' : '#555' }}>
+          <p style={{ margin: '0.3rem 0', fontSize: '1.2rem', color: outOfBed === 1 ? '#d32f2f' : movement === 1 ? '#1976d2' : '#555' }}>
             {outOfBed === 1
               ? '🚶‍♂️ 離床中'
               : movement === 1
               ? '🏃 體動中'
               : '⏳ 量測中'}
           </p>
-          <p style={{ margin: '0.3rem 0', fontSize: '1.1rem', color: autoscaling === 1 ? 'green' : 'gray' }}>
+          
+          <p style={{ margin: '0.3rem 0', fontSize: '1.2rem', color: '#666' }}>⏱️ {data.timestamp ?? '-'}</p>
+          <p style={{ fontSize: '1.2rem', color: rssiColorMap[rssi_frontend] }}>{rssiTextMap[rssi_frontend]}</p>
+          <p style={{ margin: '0.3rem 0', fontSize: '1.2rem', color: autoscaling === 1 ? 'green' : 'gray' }}>
             {autoscaling === 1 ? '⚙️ 自動調整中' : '🛑 自動調整停止'}
           </p>
-          <p style={{ margin: '0.3rem 0', fontSize: '0.9rem', color: '#666' }}>⏱️ {data.timestamp ?? '-'}</p>
         </div>
       </div>
 

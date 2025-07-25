@@ -65,6 +65,25 @@ function MCUCard({ mcu, onClick }) {
   const outOfBed = mcu.outofbed ?? null;
   const movement = mcu.movement ?? null;
   const autoscaling = mcu.autoscaling ?? null;
+  const rssi_frontend = mcu.RSSI ?? -1;
+
+  const rssiTextMap = {
+    0: "📶 訊號非常強",
+    1: "📡 訊號良好",
+    2: "📡 訊號普通",
+    3: "⚠️ 訊號偏弱",
+    4: "❌ 訊號極差",
+    [-1]: "🛠️ 未知訊號（請更新韌體）"
+  };
+
+  const rssiColorMap = {
+    0: "green",
+    1: "#4caf50",
+    2: "#ff9800",
+    3: "#f44336",
+    4: "#b71c1c",
+    [-1]: "#999"
+  };
 
   return (
     <div
@@ -101,6 +120,7 @@ function MCUCard({ mcu, onClick }) {
           : '⏳ 量測中'}
       </p>
       <p style={{ fontSize: '0.75rem', color: '#666' }}>⏱️ {mcu.timestamp ?? null}</p>
+      <p style={{ fontSize: '0.75rem', color: rssiColorMap[rssi_frontend] }}>{rssiTextMap[rssi_frontend]}</p>
       <p style={{ fontSize: '0.75rem', color: autoscaling === 1 ? 'green' : 'gray' }}>
         {autoscaling === 1 ? '⚙️ 自動調整中' : '🛑 自動調整停止'}
       </p>

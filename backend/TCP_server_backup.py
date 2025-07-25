@@ -80,6 +80,7 @@ class TCPServer:
                     "outofbed": 0,
                     'autoscaling': 0,
                     "timestamp": '',
+                    'RSSI': 0,
                     "name": '',
                     'addr':''
                 }
@@ -89,7 +90,8 @@ class TCPServer:
                     "resp_rate": [],
                     "movement": [],
                     "outofbed": [],
-                    "timestamp": []
+                    "timestamp": [],
+                    'rssi_list': []
                 }
                 print(f'start getting data on {addr_str}, id name: {mcu_id}')
                 client_socket.settimeout(10.0)
@@ -141,6 +143,7 @@ class TCPServer:
         sock = self.clients[addr_str]
         while self.running:
             try:
+                """ add timestamp in self.data_array """
                 sock.sendall(self.data_array)
                 time.sleep(0.1)
                 MCUresponseData = sock.recv(1400)
